@@ -125,12 +125,18 @@ inline bool igl::parallel_for(
   if(loop_size==0) return false;
   // Estimate number of threads in the pool
   // http://ideone.com/Z7zldb
-  const static size_t sthc = std::thread::hardware_concurrency();
-  const size_t nthreads = 
 #ifdef IGL_PARALLEL_FOR_FORCE_SERIAL
-    0;
+  const size_t nthreads = 0;
 #else
-    loop_size<min_parallel?0:(sthc==0?8:sthc);
+  const static size_t sthc = [](){
+    size_t hw_nthreads = std::thread::hardware_concurrency();
+    char* env_str = getenv("IGL_PARALLEL_FOR_NUM_THREADS");
+    if (env_str == nullptr){return hw_nthreads;}
+    int user_nthreads = atoi(env_str);
+    if (user_nthreads < 1){return hw_nthreads;}
+    return user_nthreads<hw_nthreads?user_nthreads:hw_nthreads;
+  }();
+  const size_t nthreads = loop_size<min_parallel?0:(sthc==0?8:sthc);
 #endif
   if(nthreads==0)
   {
